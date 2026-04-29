@@ -1,0 +1,33 @@
+
+<Project Sdk="Microsoft.NET.Sdk">
+
+
+
+  <PropertyGroup>
+
+    <TargetFramework>net48</TargetFramework>
+
+    <LangVersion>9.0</LangVersion>
+
+    <Nullable>enable</Nullable>
+
+    <RootNamespace>RiverMochi.CS2.Shared</RootNamespace>
+
+    <AssemblyName>CS2SharedRiverMochi</AssemblyName>
+
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+
+  </PropertyGroup>
+
+
+
+  <ItemGroup>
+
+    <Compile Include="Utils\*.cs" />
+
+  </ItemGroup>
+
+
+
+</Project>
+
