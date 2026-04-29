@@ -1,5 +1,5 @@
 // File: Utils/LogUtils.cs
-// Version: 0.6.0
+// Version: 0.6.1
 // Purpose: popup-safe direct-file logging helpers for CS2 mods.
 // Based on River-Mochi shared CS2 utilities.
 
@@ -9,13 +9,13 @@ namespace CS2Shared.RiverMochi
     using System;
     using System.Collections.Generic;
     using System.IO;
-    using System.Reflection.Emit;
 
     public static class LogUtils
     {
         private static readonly object s_WarnOnceLock = new object();
         private static readonly object s_FileWriteLock = new object();
 
+        // Per-process key cache so hot-path warnings show once instead of repeating every update.
         private static readonly HashSet<string> s_WarnOnceKeys =
             new HashSet<string>(StringComparer.Ordinal);
 
@@ -145,6 +145,8 @@ namespace CS2Shared.RiverMochi
 
             lock (s_FileWriteLock)
             {
+                // Direct append keeps routine mod diagnostics out of Colossal's UI-log path.
+                // ShareReadWrite keeps the file readable while the game is running.
                 string? dir = Path.GetDirectoryName(logPath);
                 if (!string.IsNullOrEmpty(dir))
                 {

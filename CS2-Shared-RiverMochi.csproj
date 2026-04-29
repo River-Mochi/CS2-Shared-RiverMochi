@@ -1,33 +1,77 @@
-
+<!-- File: CS2-Shared-RiverMochi.csproj -->
 <Project Sdk="Microsoft.NET.Sdk">
 
+    <PropertyGroup>
+        <Configurations>Debug;Release</Configurations>
+        <TargetFramework>net48</TargetFramework>
+        <LangVersion>9.0</LangVersion>
+        <Nullable>enable</Nullable>
+        <AssemblyName>CS2SharedRiverMochi</AssemblyName>
+        <RootNamespace>CS2Shared.RiverMochi</RootNamespace>
+        <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    </PropertyGroup>
 
+    <Import Project="$([System.Environment]::GetEnvironmentVariable('CSII_TOOLPATH', 'EnvironmentVariableTarget.User'))\Mod.props" />
 
-  <PropertyGroup>
+    <ItemGroup>
+        <Compile Include="Utils\*.cs" />
+    </ItemGroup>
 
-    <TargetFramework>net48</TargetFramework>
+    <ItemGroup>
+        <Reference Include="Game">
+            <Private>false</Private>
+        </Reference>
+        <Reference Include="Colossal.Core">
+            <Private>false</Private>
+        </Reference>
+        <Reference Include="Colossal.Logging">
+            <Private>false</Private>
+        </Reference>
+        <Reference Include="Colossal.IO.AssetDatabase">
+            <Private>false</Private>
+        </Reference>
+        <Reference Include="Colossal.Mathematics">
+            <Private>false</Private>
+        </Reference>
+        <Reference Include="Colossal.UI">
+            <Private>false</Private>
+        </Reference>
+        <Reference Include="Colossal.UI.Binding">
+            <Private>false</Private>
+        </Reference>
+        <Reference Include="Colossal.Localization">
+            <Private>false</Private>
+        </Reference>
+        <Reference Include="Unity.InputSystem">
+            <Private>false</Private>
+        </Reference>
+        <Reference Include="UnityEngine.CoreModule">
+            <Private>false</Private>
+        </Reference>
+        <Reference Include="Unity.Burst">
+            <Private>false</Private>
+        </Reference>
+        <Reference Include="Unity.Collections">
+            <Private>false</Private>
+        </Reference>
+        <Reference Include="Unity.Entities">
+            <Private>false</Private>
+        </Reference>
+        <Reference Include="Unity.Mathematics">
+            <Private>false</Private>
+        </Reference>
+    </ItemGroup>
 
-    <LangVersion>9.0</LangVersion>
-
-    <Nullable>enable</Nullable>
-
-    <RootNamespace>RiverMochi.CS2.Shared</RootNamespace>
-
-    <AssemblyName>CS2SharedRiverMochi</AssemblyName>
-
-    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
-
-  </PropertyGroup>
-
-
-
-  <ItemGroup>
-
-    <Compile Include="Utils\*.cs" />
-
-  </ItemGroup>
-
-
+    <ItemGroup>
+        <Reference Update="System">
+            <Private>false</Private>
+        </Reference>
+        <Reference Update="System.Core">
+            <Private>false</Private>
+        </Reference>
+        <Reference Update="System.Data">
+            <Private>false</Private>
+        </Reference>
+    </ItemGroup>
 
 </Project>
-
