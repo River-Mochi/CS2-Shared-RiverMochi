@@ -1,0 +1,236 @@
+// File: Utils/LogUtils.cs
+// version : 0.5.2
+// Purpose: popup-safe logging helpers for CS2 mods.
+// Based on River-Mochi shared CS2 utilities.
+
+namespace CS2Shared.RiverMochi
+{
+    using Colossal.Logging;
+    using System;
+    using System.Collections.Generic;
+    using System.IO;
+
+    public static class LogUtils
+    {
+        private static readonly object s_WarnOnceLock = new object();
+        private static readonly object s_FileWriteLock = new object();
+
+        // Per-process key cache so hot-path warnings show once instead of spamming every update.
+        private static readonly HashSet<string> s_WarnOnceKeys =
+            new HashSet<string>(StringComparer.Ordinal);
+
+        private const int MaxWarnOnceKeys = 2048;
+
+        public static bool WarnOnce(ILog log, string key, Func<string> messageFactory, Exception? exception = null)
+        {
+            if (log == null || string.IsNullOrEmpty(key) || messageFactory == null)
+            {
+                return false;
+            }
+
+            if (!IsLevelEnabled(log, Level.Warn))
+            {
+                return false;
+            }
+
+            string fullKey = GetLogName(log) + "|" + key;
+
+            lock (s_WarnOnceLock)
+            {
+                if (s_WarnOnceKeys.Count >= MaxWarnOnceKeys)
+                {
+                    s_WarnOnceKeys.Clear();
+                }
+
+                if (!s_WarnOnceKeys.Add(fullKey))
+                {
+                    return false;
+                }
+            }
+
+            TryLog(log, Level.Warn, messageFactory, exception);
+            return true;
+        }
+
+        public static void Info(ILog log, Func<string> messageFactory)
+        {
+            TryLog(log, Level.Info, messageFactory);
+        }
+
+        public static void Warn(ILog log, Func<string> messageFactory, Exception? exception = null)
+        {
+            TryLog(log, Level.Warn, messageFactory, exception);
+        }
+
+        public static void Debug(ILog log, Func<string> messageFactory)
+        {
+            TryLog(log, Level.Debug, messageFactory);
+        }
+
+        public static void TryLog(ILog log, Level level, Func<string> messageFactory, Exception? exception = null)
+        {
+            if (log == null || messageFactory == null)
+            {
+                return;
+            }
+
+            if (!IsLevelEnabled(log, level))
+            {
+                return;
+            }
+
+            string message;
+            try
+            {
+                message = messageFactory() ?? string.Empty;
+            }
+            catch (Exception ex)
+            {
+                SafeLogNoException(log, Level.Warn, "Log message factory threw: " + ex.GetType().Name + ": " + ex.Message);
+                return;
+            }
+
+            try
+            {
+                // Routine FB logs bypass Colossal's Unity logger path; that path can show
+                // a UI popup if its internal file stream fails while writing.
+                AppendDirect(log, level, message, exception);
+            }
+            catch
+            {
+            }
+        }
+
+        private static void SafeLogNoException(ILog log, Level level, string message)
+        {
+            try
+            {
+                if (log != null && IsLevelEnabled(log, level))
+                {
+                    AppendDirect(log, level, message, null);
+                }
+            }
+            catch
+            {
+            }
+        }
+
+        private static void AppendDirect(ILog log, Level level, string message, Exception? exception)
+        {
+            string logPath = GetLogPath(log);
+            if (string.IsNullOrEmpty(logPath))
+            {
+                return;
+            }
+
+            lock (s_FileWriteLock)
+            {
+                // Direct append keeps routine mod diagnostics out of Colossal's fragile UI-log path.
+                // ShareReadWrite lets the file stay viewable while the game keeps running.
+                string? dir = Path.GetDirectoryName(logPath);
+                if (!string.IsNullOrEmpty(dir))
+                {
+                    Directory.CreateDirectory(dir);
+                }
+
+                using FileStream stream = new FileStream(
+                    logPath,
+                    FileMode.Append,
+                    FileAccess.Write,
+                    FileShare.ReadWrite);
+                using StreamWriter writer = new StreamWriter(stream);
+
+                writer.Write('[');
+                writer.Write(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss,fff"));
+                writer.Write("] [");
+                writer.Write(GetLevelName(level));
+                writer.Write("]  ");
+                writer.WriteLine(message ?? string.Empty);
+
+                if (exception != null)
+                {
+                    writer.WriteLine(exception);
+                }
+            }
+        }
+
+        private static string GetLogPath(ILog log)
+        {
+            try
+            {
+                // Prefer the path Colossal assigned to this custom logger.
+                if (!string.IsNullOrEmpty(log.logPath))
+                {
+                    return log.logPath;
+                }
+
+                string logName = GetLogName(log);
+                if (string.IsNullOrEmpty(logName))
+                {
+                    return string.Empty;
+                }
+
+                return Path.Combine(LogManager.kDefaultLogPath, logName + ".log");
+            }
+            catch
+            {
+                return Path.Combine(LogManager.kDefaultLogPath, Mod.ModId + ".log");
+            }
+        }
+
+        private static string GetLogName(ILog log)
+        {
+            try
+            {
+                return string.IsNullOrEmpty(log.name) ? Mod.ModId : log.name;
+            }
+            catch
+            {
+                return Mod.ModId;
+            }
+        }
+
+        private static bool IsLevelEnabled(ILog log, Level level)
+        {
+            try
+            {
+                return log.isLevelEnabled(level);
+            }
+            catch
+            {
+                // If Colossal logging state is in flux, prefer keeping direct-file logging alive.
+                return true;
+            }
+        }
+
+        private static string GetLevelName(Level level)
+        {
+            if (level == Level.Warn)
+            {
+                return "WARN";
+            }
+
+            if (level == Level.Error)
+            {
+                return "ERROR";
+            }
+
+            if (level == Level.Debug)
+            {
+                return "DEBUG";
+            }
+
+            if (level == Level.Trace)
+            {
+                return "TRACE";
+            }
+
+            if (level == Level.Verbose)
+            {
+                return "VERBOSE";
+            }
+
+            return "INFO";
+        }
+    }
+}
