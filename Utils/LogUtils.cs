@@ -1,6 +1,6 @@
 // File: Utils/LogUtils.cs
-// version : 0.5.2
-// Purpose: popup-safe logging helpers for CS2 mods.
+// Version: 0.6.0
+// Purpose: popup-safe direct-file logging helpers for CS2 mods.
 // Based on River-Mochi shared CS2 utilities.
 
 namespace CS2Shared.RiverMochi
@@ -9,17 +9,33 @@ namespace CS2Shared.RiverMochi
     using System;
     using System.Collections.Generic;
     using System.IO;
+    using System.Reflection.Emit;
 
     public static class LogUtils
     {
         private static readonly object s_WarnOnceLock = new object();
         private static readonly object s_FileWriteLock = new object();
 
-        // Per-process key cache so hot-path warnings show once instead of spamming every update.
         private static readonly HashSet<string> s_WarnOnceKeys =
             new HashSet<string>(StringComparer.Ordinal);
 
         private const int MaxWarnOnceKeys = 2048;
+
+        private static string s_FallbackLogName = string.Empty;
+
+        public static void Configure(string fallbackLogName)
+        {
+            if (string.IsNullOrWhiteSpace(fallbackLogName))
+            {
+                return;
+            }
+
+            string cleaned = Path.GetFileNameWithoutExtension(fallbackLogName.Trim());
+            if (!string.IsNullOrWhiteSpace(cleaned))
+            {
+                s_FallbackLogName = cleaned;
+            }
+        }
 
         public static bool WarnOnce(ILog log, string key, Func<string> messageFactory, Exception? exception = null)
         {
@@ -33,7 +49,8 @@ namespace CS2Shared.RiverMochi
                 return false;
             }
 
-            string fullKey = GetLogName(log) + "|" + key;
+            string logName = GetLogName(log);
+            string fullKey = string.IsNullOrEmpty(logName) ? key : logName + "|" + key;
 
             lock (s_WarnOnceLock)
             {
@@ -67,6 +84,11 @@ namespace CS2Shared.RiverMochi
             TryLog(log, Level.Debug, messageFactory);
         }
 
+        public static void Error(ILog log, Func<string> messageFactory, Exception? exception = null)
+        {
+            TryLog(log, Level.Error, messageFactory, exception);
+        }
+
         public static void TryLog(ILog log, Level level, Func<string> messageFactory, Exception? exception = null)
         {
             if (log == null || messageFactory == null)
@@ -92,8 +114,6 @@ namespace CS2Shared.RiverMochi
 
             try
             {
-                // Routine FB logs bypass Colossal's Unity logger path; that path can show
-                // a UI popup if its internal file stream fails while writing.
                 AppendDirect(log, level, message, exception);
             }
             catch
@@ -125,8 +145,6 @@ namespace CS2Shared.RiverMochi
 
             lock (s_FileWriteLock)
             {
-                // Direct append keeps routine mod diagnostics out of Colossal's fragile UI-log path.
-                // ShareReadWrite lets the file stay viewable while the game keeps running.
                 string? dir = Path.GetDirectoryName(logPath);
                 if (!string.IsNullOrEmpty(dir))
                 {
@@ -138,6 +156,7 @@ namespace CS2Shared.RiverMochi
                     FileMode.Append,
                     FileAccess.Write,
                     FileShare.ReadWrite);
+
                 using StreamWriter writer = new StreamWriter(stream);
 
                 writer.Write('[');
@@ -158,23 +177,27 @@ namespace CS2Shared.RiverMochi
         {
             try
             {
-                // Prefer the path Colossal assigned to this custom logger.
                 if (!string.IsNullOrEmpty(log.logPath))
                 {
                     return log.logPath;
                 }
 
                 string logName = GetLogName(log);
-                if (string.IsNullOrEmpty(logName))
+                if (!string.IsNullOrEmpty(logName))
+                {
+                    return Path.Combine(LogManager.kDefaultLogPath, logName + ".log");
+                }
+
+                return string.Empty;
+            }
+            catch
+            {
+                if (string.IsNullOrEmpty(s_FallbackLogName))
                 {
                     return string.Empty;
                 }
 
-                return Path.Combine(LogManager.kDefaultLogPath, logName + ".log");
-            }
-            catch
-            {
-                return Path.Combine(LogManager.kDefaultLogPath, Mod.ModId + ".log");
+                return Path.Combine(LogManager.kDefaultLogPath, s_FallbackLogName + ".log");
             }
         }
 
@@ -182,11 +205,16 @@ namespace CS2Shared.RiverMochi
         {
             try
             {
-                return string.IsNullOrEmpty(log.name) ? Mod.ModId : log.name;
+                if (!string.IsNullOrEmpty(log.name))
+                {
+                    return log.name;
+                }
+
+                return s_FallbackLogName;
             }
             catch
             {
-                return Mod.ModId;
+                return s_FallbackLogName;
             }
         }
 
@@ -198,7 +226,6 @@ namespace CS2Shared.RiverMochi
             }
             catch
             {
-                // If Colossal logging state is in flux, prefer keeping direct-file logging alive.
                 return true;
             }
         }
