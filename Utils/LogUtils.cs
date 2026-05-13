@@ -24,9 +24,10 @@ namespace CS2Shared.RiverMochi
 
         private const int MaxWarnOnceKeys = 2048;
 
+        // Used only if the passed ILog is null or its metadata throws during early startup/shutdown.
         private static string s_FallbackLogName = string.Empty;
-        private static ILog? s_DefaultLog;
 
+        // Optional one-time setup: pass your mod id so fallback writes can still find ModName.log.
         public static void Configure(string fallbackLogName)
         {
             if (string.IsNullOrWhiteSpace(fallbackLogName))
@@ -41,17 +42,7 @@ namespace CS2Shared.RiverMochi
             }
         }
 
-        public static void Configure(string fallbackLogName, ILog? defaultLog)
-        {
-            Configure(fallbackLogName);
-            s_DefaultLog = defaultLog;
-        }
-
-        public static void SetDefaultLog(ILog? log)
-        {
-            s_DefaultLog = log;
-        }
-
+        // Test/mod-reload helper: lets a mod reset once-only warnings without restarting the game.
         public static void ClearWarnOnceKeys()
         {
             lock (s_WarnOnceLock)
@@ -60,11 +51,7 @@ namespace CS2Shared.RiverMochi
             }
         }
 
-        public static bool WarnOnce(string key, Func<string> messageFactory, Exception? exception = null)
-        {
-            return WarnOnce(s_DefaultLog, key, messageFactory, exception);
-        }
-
+        // Logs a warning only once per logger+key so hot update loops cannot spam the log.
         public static bool WarnOnce(ILog? log, string key, Func<string> messageFactory, Exception? exception = null)
         {
             if (string.IsNullOrEmpty(key) || messageFactory == null)
@@ -97,71 +84,43 @@ namespace CS2Shared.RiverMochi
             return true;
         }
 
-        public static void Info(Func<string> messageFactory)
-        {
-            TryLog(s_DefaultLog, Level.Info, messageFactory);
-        }
-
+        // Routine status/debugging info. Pass your mod's s_Log explicitly for clear call sites.
         public static void Info(ILog? log, Func<string> messageFactory)
         {
             TryLog(log, Level.Info, messageFactory);
         }
 
-        public static void Warn(Func<string> messageFactory, Exception? exception = null)
-        {
-            TryLog(s_DefaultLog, Level.Warn, messageFactory, exception);
-        }
-
+        // Recoverable problem worth showing in the mod log, optionally with an exception stack trace.
         public static void Warn(ILog? log, Func<string> messageFactory, Exception? exception = null)
         {
             TryLog(log, Level.Warn, messageFactory, exception);
         }
 
-        public static void Error(Func<string> messageFactory, Exception? exception = null)
-        {
-            TryLog(s_DefaultLog, Level.Error, messageFactory, exception);
-        }
-
+        // Serious problem that should still avoid Colossal logger UI popups when possible.
         public static void Error(ILog? log, Func<string> messageFactory, Exception? exception = null)
         {
             TryLog(log, Level.Error, messageFactory, exception);
         }
 
-        public static void Debug(Func<string> messageFactory)
-        {
-            TryLog(s_DefaultLog, Level.Debug, messageFactory);
-        }
-
+        // Debug output obeys the logger's enabled level before building the message string.
         public static void Debug(ILog? log, Func<string> messageFactory)
         {
             TryLog(log, Level.Debug, messageFactory);
         }
 
-        public static void Trace(Func<string> messageFactory)
-        {
-            TryLog(s_DefaultLog, Level.Trace, messageFactory);
-        }
-
+        // Very detailed diagnostics for rare deep investigations.
         public static void Trace(ILog? log, Func<string> messageFactory)
         {
             TryLog(log, Level.Trace, messageFactory);
         }
 
-        public static void Verbose(Func<string> messageFactory)
-        {
-            TryLog(s_DefaultLog, Level.Verbose, messageFactory);
-        }
-
+        // Player-enabled verbose logs: useful for test builds without making normal logs noisy.
         public static void Verbose(ILog? log, Func<string> messageFactory)
         {
             TryLog(log, Level.Verbose, messageFactory);
         }
 
-        public static void TryLog(Level level, Func<string> messageFactory, Exception? exception = null)
-        {
-            TryLog(s_DefaultLog, level, messageFactory, exception);
-        }
-
+        // Central safe entrypoint: checks level first, builds message safely, then direct-appends.
         public static void TryLog(ILog? log, Level level, Func<string> messageFactory, Exception? exception = null)
         {
             if (messageFactory == null)
@@ -194,6 +153,7 @@ namespace CS2Shared.RiverMochi
             }
         }
 
+        // Last-chance warning path used when the original message factory itself throws.
         private static void SafeLogNoException(ILog? log, Level level, string message)
         {
             try
@@ -208,6 +168,7 @@ namespace CS2Shared.RiverMochi
             }
         }
 
+        // Writes directly to ModName.log using .NET, bypassing Colossal's logger write path.
         private static void AppendDirect(ILog? log, Level level, string message, Exception? exception)
         {
             string logPath = GetLogPath(log);
@@ -248,6 +209,7 @@ namespace CS2Shared.RiverMochi
             }
         }
 
+        // Prefer Colossal's assigned file path; fallback to Logs/FallbackName.log if needed.
         private static string GetLogPath(ILog? log)
         {
             try
@@ -276,6 +238,7 @@ namespace CS2Shared.RiverMochi
             }
         }
 
+        // Keeps the logger name lookup isolated because ILog metadata can be fragile during startup.
         private static string GetLogName(ILog? log)
         {
             try
@@ -293,6 +256,7 @@ namespace CS2Shared.RiverMochi
             }
         }
 
+        // If level checks fail because logging is in flux, keep direct-file logging available.
         private static bool IsLevelEnabled(ILog? log, Level level)
         {
             try
@@ -306,6 +270,7 @@ namespace CS2Shared.RiverMochi
             }
         }
 
+        // Format level names like Colossal logs so ModName.log remains easy to grep.
         private static string GetLevelName(Level level)
         {
             if (level == Level.Warn)
