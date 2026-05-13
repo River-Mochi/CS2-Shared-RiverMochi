@@ -1,6 +1,9 @@
 // File: Utils/LogUtils.cs
-// Version: 0.6.1
+// Version: 0.6.3
 // Purpose: popup-safe direct-file logging helpers for CS2 mods.
+// Why: routine Info/Warn diagnostics are written with .NET FileStream/StreamWriter
+// instead of sending every message through Colossal's logger write path, which can
+// surface UI popups if its internal stream fails.
 // Based on River-Mochi shared CS2 utilities.
 
 namespace CS2Shared.RiverMochi
@@ -22,6 +25,7 @@ namespace CS2Shared.RiverMochi
         private const int MaxWarnOnceKeys = 2048;
 
         private static string s_FallbackLogName = string.Empty;
+        private static ILog? s_DefaultLog;
 
         public static void Configure(string fallbackLogName)
         {
@@ -37,9 +41,33 @@ namespace CS2Shared.RiverMochi
             }
         }
 
-        public static bool WarnOnce(ILog log, string key, Func<string> messageFactory, Exception? exception = null)
+        public static void Configure(string fallbackLogName, ILog? defaultLog)
         {
-            if (log == null || string.IsNullOrEmpty(key) || messageFactory == null)
+            Configure(fallbackLogName);
+            s_DefaultLog = defaultLog;
+        }
+
+        public static void SetDefaultLog(ILog? log)
+        {
+            s_DefaultLog = log;
+        }
+
+        public static void ClearWarnOnceKeys()
+        {
+            lock (s_WarnOnceLock)
+            {
+                s_WarnOnceKeys.Clear();
+            }
+        }
+
+        public static bool WarnOnce(string key, Func<string> messageFactory, Exception? exception = null)
+        {
+            return WarnOnce(s_DefaultLog, key, messageFactory, exception);
+        }
+
+        public static bool WarnOnce(ILog? log, string key, Func<string> messageFactory, Exception? exception = null)
+        {
+            if (string.IsNullOrEmpty(key) || messageFactory == null)
             {
                 return false;
             }
@@ -69,29 +97,74 @@ namespace CS2Shared.RiverMochi
             return true;
         }
 
-        public static void Info(ILog log, Func<string> messageFactory)
+        public static void Info(Func<string> messageFactory)
+        {
+            TryLog(s_DefaultLog, Level.Info, messageFactory);
+        }
+
+        public static void Info(ILog? log, Func<string> messageFactory)
         {
             TryLog(log, Level.Info, messageFactory);
         }
 
-        public static void Warn(ILog log, Func<string> messageFactory, Exception? exception = null)
+        public static void Warn(Func<string> messageFactory, Exception? exception = null)
+        {
+            TryLog(s_DefaultLog, Level.Warn, messageFactory, exception);
+        }
+
+        public static void Warn(ILog? log, Func<string> messageFactory, Exception? exception = null)
         {
             TryLog(log, Level.Warn, messageFactory, exception);
         }
 
-        public static void Debug(ILog log, Func<string> messageFactory)
+        public static void Error(Func<string> messageFactory, Exception? exception = null)
         {
-            TryLog(log, Level.Debug, messageFactory);
+            TryLog(s_DefaultLog, Level.Error, messageFactory, exception);
         }
 
-        public static void Error(ILog log, Func<string> messageFactory, Exception? exception = null)
+        public static void Error(ILog? log, Func<string> messageFactory, Exception? exception = null)
         {
             TryLog(log, Level.Error, messageFactory, exception);
         }
 
-        public static void TryLog(ILog log, Level level, Func<string> messageFactory, Exception? exception = null)
+        public static void Debug(Func<string> messageFactory)
         {
-            if (log == null || messageFactory == null)
+            TryLog(s_DefaultLog, Level.Debug, messageFactory);
+        }
+
+        public static void Debug(ILog? log, Func<string> messageFactory)
+        {
+            TryLog(log, Level.Debug, messageFactory);
+        }
+
+        public static void Trace(Func<string> messageFactory)
+        {
+            TryLog(s_DefaultLog, Level.Trace, messageFactory);
+        }
+
+        public static void Trace(ILog? log, Func<string> messageFactory)
+        {
+            TryLog(log, Level.Trace, messageFactory);
+        }
+
+        public static void Verbose(Func<string> messageFactory)
+        {
+            TryLog(s_DefaultLog, Level.Verbose, messageFactory);
+        }
+
+        public static void Verbose(ILog? log, Func<string> messageFactory)
+        {
+            TryLog(log, Level.Verbose, messageFactory);
+        }
+
+        public static void TryLog(Level level, Func<string> messageFactory, Exception? exception = null)
+        {
+            TryLog(s_DefaultLog, level, messageFactory, exception);
+        }
+
+        public static void TryLog(ILog? log, Level level, Func<string> messageFactory, Exception? exception = null)
+        {
+            if (messageFactory == null)
             {
                 return;
             }
@@ -121,11 +194,11 @@ namespace CS2Shared.RiverMochi
             }
         }
 
-        private static void SafeLogNoException(ILog log, Level level, string message)
+        private static void SafeLogNoException(ILog? log, Level level, string message)
         {
             try
             {
-                if (log != null && IsLevelEnabled(log, level))
+                if (IsLevelEnabled(log, level))
                 {
                     AppendDirect(log, level, message, null);
                 }
@@ -135,7 +208,7 @@ namespace CS2Shared.RiverMochi
             }
         }
 
-        private static void AppendDirect(ILog log, Level level, string message, Exception? exception)
+        private static void AppendDirect(ILog? log, Level level, string message, Exception? exception)
         {
             string logPath = GetLogPath(log);
             if (string.IsNullOrEmpty(logPath))
@@ -175,11 +248,11 @@ namespace CS2Shared.RiverMochi
             }
         }
 
-        private static string GetLogPath(ILog log)
+        private static string GetLogPath(ILog? log)
         {
             try
             {
-                if (!string.IsNullOrEmpty(log.logPath))
+                if (log != null && !string.IsNullOrEmpty(log.logPath))
                 {
                     return log.logPath;
                 }
@@ -203,11 +276,11 @@ namespace CS2Shared.RiverMochi
             }
         }
 
-        private static string GetLogName(ILog log)
+        private static string GetLogName(ILog? log)
         {
             try
             {
-                if (!string.IsNullOrEmpty(log.name))
+                if (log != null && !string.IsNullOrEmpty(log.name))
                 {
                     return log.name;
                 }
@@ -220,14 +293,15 @@ namespace CS2Shared.RiverMochi
             }
         }
 
-        private static bool IsLevelEnabled(ILog log, Level level)
+        private static bool IsLevelEnabled(ILog? log, Level level)
         {
             try
             {
-                return log.isLevelEnabled(level);
+                return log == null || log.isLevelEnabled(level);
             }
             catch
             {
+                // If Colossal logging state is in flux, prefer keeping direct-file logging alive.
                 return true;
             }
         }
