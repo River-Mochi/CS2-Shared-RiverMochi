@@ -1,168 +1,220 @@
-// DebugLocaleScan.cs
+// File: Utils/DebugLocaleScan.cs
+// Version: 0.1.0
+// Purpose: DEBUG-only helpers for finding CS2 localization keys while making mods.
+// Based on River-Mochi shared CS2 utilities.
+//
+// Why:
+// - CS2 often already has localized text for game concepts such as notifications,
+//   milestones, tooltips, menus, notifications, policies, and services.
+// - These helpers let a modder search the active game localization dictionary so
+//   a mod can reuse game keys instead of hard-coding English text.
+//
+// How to use in a mod:
+// 1. Keep calls inside #if DEBUG so Release builds stay quiet.
+// 2. Call one of these from Mod.OnLoad() or another debug-only test point:
+//
+//    #if DEBUG
+//    DebugLocaleScan.DumpStarterExamples(s_Log);
+//    DebugLocaleScan.DumpByPrefix("Notifications.TITLE[", s_Log, printLimit: 15);
+//    DebugLocaleScan.DumpWhereValueContains("not enough electricity", s_Log);
+//    #endif
+//
+// What to change:
+// - To find notification title keys, change the prefix to "Notifications.TITLE[".
+// - To find milestone keys, change the prefix to "Progression.MILESTONE_NAME:".
+// - To search by visible text, change the text in DumpWhereValueContains(...).
+//
+// Safety:
+// - Read-only. This only reads GameManager.instance.localizationManager.activeDictionary.
+// - Wrapped in #if DEBUG so it does not compile into normal Release builds.
 
+#if DEBUG
 namespace CS2Shared.RiverMochi
 {
-#if DEBUG
-    using Colossal.Localization;   // LocalizationManager, LocalizationDictionary
-    using Colossal.Logging;        // ILog
-    using Game.SceneFlow;          // GameManager
+    using Colossal.Localization;
+    using Colossal.Logging;
+    using Game.SceneFlow;
     using System;
-
-    /*
-     * DebugLocaleScan (DEBUG-only)
-     * ---------------------------
-     * Might Spin-off into a separate Utility Mod to help other modders.
-     *
-     * What it does:
-     *   - Analyzes the game's ACTIVE localization dictionary for the current language
-     *     (GameManager.instance.localizationManager.activeDictionary).
-     *   - Lets you quickly list/count achievement-related keys (TITLE / DESCRIPTION), and
-     *     search for keys by their VALUE text.
-     *
-     * Why this is useful:
-     *   - Verify the exact keys the game exposes (e.g., "Achievements.TITLE[MyFirstCity]").
-     *   - Find which key maps to a particular phrase (search by VALUE, case-insensitive).
-     *   - Detect patches: if counts drop to 0 after an update, the keys likely moved/changed.
-     *
-     * How to run:
-     *   1) Call these from Mod.OnLoad() ONLY in DEBUG builds, e.g.:
-     *
-     *        #if DEBUG
-     *        DebugLocaleScan.DumpAchievements(Mod.log);
-     *        // Optional targeted searches by visible text:
-     *        DebugLocaleScan.DumpWhereValueContains("My First City", Mod.log);
-     *        DebugLocaleScan.DumpWhereValueContains("Key to the City", Mod.log);
-     *        #endif
-     *
-     *   2) Can also re-run these after a language change if you subscribe to
-     *      LocalizationManager.onActiveDictionaryChanged and want to log the new locale’s data.
-     *
-     * Output:
-     *   - Writes concise lines to the mod log. For DumpAchievements, it prints a few sample keys/values
-     *     (so logs don’t explode) and then a final summary:
-     *       [Locale] Achievements keys — TITLE:NN  DESC:NN  OTHER:NN  (locale=en-US)
-     *
-     * Generic usage (not only Achievements):
-     *   - DumpWhereValueContains(...) works across ALL keys (except Assets.* if you keep skipAssets=true).
-     *   - Optional DumpByPrefix(...) below can list any tables you care about:
-     *       "Menu.", "Options.", "Tutorial.", "Tooltips.", "Notifications.",
-     *       "Infoviews.", "Progression.", "Policies.", etc.
-     *
-     * Build/Packaging:
-     *   - This file is wrapped in #if DEBUG so it will NOT compile into Release builds as long as
-     *     your Release configuration doesn’t define DEBUG (default).
-     *   - If you also want to exclude the file from the Release project entirely,
-     *     add this to your .csproj:
-     *
-     *       <ItemGroup Condition="'$(Configuration)'=='Release'">
-     *         <Compile Remove="Utilities\DebugLocaleScan.cs" />
-     *       </ItemGroup>
-     *
-     * Safety:
-     *   - Read-only: just logs what keys/values are present. Does not modify game state.
-     */
+    using System.Collections.Generic;
+    using System.Diagnostics.CodeAnalysis;
 
     public static class DebugLocaleScan
     {
+        private const int DefaultPrintLimit = 20;
+
         /// <summary>
-        /// Dump counts and a few sample entries for achievement-related keys.
-        /// TITLE[...] are the friendly names; DESCRIPTION[...] are their descriptions.
-        /// OTHER covers keys under "Achievements." that aren't title/description.
+        /// Small known-good example for first-time testing. This should produce only a few log lines.
+        /// After this works, replace the key/prefix/search text with whatever your mod needs.
         /// </summary>
-        public static void DumpAchievements(ILog log)
+        public static void DumpStarterExamples(ILog log)
         {
-            var lm = GameManager.instance?.localizationManager as LocalizationManager;
-            LocalizationDictionary? dict = lm?.activeDictionary;
-            if (dict == null)
+            if (!TryGetDictionary(log, out LocalizationDictionary? dict))
             {
-                log.Info("[Locale] No activeDictionary.");
                 return;
             }
 
-            int title = 0, desc = 0, other = 0, printed = 0;
-
-            foreach (System.Collections.Generic.KeyValuePair<string, string> kv in dict.entries)
-            {
-                // Print a handful of examples so logs stay readable.
-                if (kv.Key.StartsWith("Achievements.TITLE[", StringComparison.Ordinal))
-                {
-                    if (printed++ < 10)
-                        log.Info($"[Locale] TITLE: {kv.Key} = {kv.Value}");
-                    title++;
-                }
-                else if (kv.Key.StartsWith("Achievements.DESCRIPTION[", StringComparison.Ordinal))
-                {
-                    if (printed++ < 20)
-                        log.Info($"[Locale] DESC : {kv.Key} = {kv.Value}");
-                    desc++;
-                }
-                else if (kv.Key.StartsWith("Achievements.", StringComparison.Ordinal))
-                {
-                    if (printed++ < 25)
-                        log.Info($"[Locale] OTHER: {kv.Key} = {kv.Value}");
-                    other++;
-                }
-            }
-
-            log.Info($"[Locale] Achievements keys — TITLE:{title}  DESC:{desc}  OTHER:{other}  (locale={dict.localeID})");
+            log.Info($"[LocaleScan] Active locale: {dict.localeID}; entries: {CountEntries(dict)}");
+            DumpKey("Progression.MILESTONE_NAME:1", log);
+            DumpByPrefix("Progression.MILESTONE_NAME:", log, printLimit: 5);
         }
 
         /// <summary>
-        /// Search by VISIBLE TEXT (value), case-insensitive.
-        /// Example: DebugLocaleScan.DumpWhereValueContains("companies", log);
-        /// By default, skips "Assets.*" keys to reduce noise.
+        /// Print one exact key if it exists in the active language.
+        /// Example: DumpKey("Progression.MILESTONE_NAME:1", s_Log);
         /// </summary>
-        public static void DumpWhereValueContains(string needle, ILog log, bool skipAssets = true)
+        public static void DumpKey(string key, ILog log)
         {
-            if (string.IsNullOrWhiteSpace(needle))
-                return;
-
-            var lm = GameManager.instance?.localizationManager as LocalizationManager;
-            LocalizationDictionary? dict = lm?.activeDictionary;
-            if (dict == null)
+            if (string.IsNullOrWhiteSpace(key))
             {
-                log.Info("[Locale] No activeDictionary.");
                 return;
             }
 
-            foreach (System.Collections.Generic.KeyValuePair<string, string> kv in dict.entries)
+            if (!TryGetDictionary(log, out LocalizationDictionary? dict))
             {
-                if (skipAssets && kv.Key.StartsWith("Assets.", StringComparison.Ordinal))
-                    continue;
-                if (kv.Value?.IndexOf(needle, StringComparison.OrdinalIgnoreCase) >= 0)
-                    log.Info($"[Locale] MATCH: {kv.Key}\t{kv.Value}");
+                return;
             }
+
+            if (dict.TryGetValue(key, out string value) && !string.IsNullOrWhiteSpace(value))
+            {
+                log.Info($"[LocaleScan] KEY: {key} = {value}");
+                return;
+            }
+
+            log.Info($"[LocaleScan] KEY MISS: {key} (locale={dict.localeID})");
         }
 
         /// <summary>
-        /// (Optional) Generic prefix dumper. Handy for exploring other tables:
-        /// e.g., "Menu.", "Options.", "Tutorial.", "Tooltips.", "Notifications.", "Infoviews.", etc.
+        /// Print keys that start with a prefix, then print the total count.
+        /// Examples:
+        /// - DumpByPrefix("Notifications.TITLE[", s_Log)
+        /// - DumpByPrefix("Progression.MILESTONE_NAME:", s_Log)
+        /// - DumpByPrefix("Menu.", s_Log, printLimit: 10)
         /// </summary>
-        public static void DumpByPrefix(string prefix, ILog log, int printLimit = 20)
+        public static void DumpByPrefix(string prefix, ILog log, int printLimit = DefaultPrintLimit, bool skipAssets = true)
         {
             if (string.IsNullOrWhiteSpace(prefix))
-                return;
-
-            var lm = GameManager.instance?.localizationManager as LocalizationManager;
-            LocalizationDictionary? dict = lm?.activeDictionary;
-            if (dict == null)
             {
-                log.Info("[Locale] No activeDictionary.");
                 return;
             }
 
-            int count = 0, printed = 0;
-            foreach (System.Collections.Generic.KeyValuePair<string, string> kv in dict.entries)
+            DumpMatches(
+                log,
+                $"Prefix '{prefix}'",
+                printLimit,
+                skipAssets,
+                kv => kv.Key.StartsWith(prefix, StringComparison.Ordinal));
+        }
+
+        /// <summary>
+        /// Search by key text, not translated value.
+        /// Example: DumpWhereKeyContains("MILESTONE", s_Log);
+        /// </summary>
+        public static void DumpWhereKeyContains(string needle, ILog log, int printLimit = DefaultPrintLimit, bool skipAssets = true)
+        {
+            if (string.IsNullOrWhiteSpace(needle))
             {
-                if (kv.Key.StartsWith(prefix, StringComparison.Ordinal))
+                return;
+            }
+
+            DumpMatches(
+                log,
+                $"Key contains '{needle}'",
+                printLimit,
+                skipAssets,
+                kv => kv.Key.IndexOf(needle, StringComparison.OrdinalIgnoreCase) >= 0);
+        }
+
+        /// <summary>
+        /// Search by visible translated text.
+        /// Example: DumpWhereValueContains("not enough electricity", s_Log);
+        /// </summary>
+        public static void DumpWhereValueContains(string needle, ILog log, int printLimit = DefaultPrintLimit, bool skipAssets = true)
+        {
+            if (string.IsNullOrWhiteSpace(needle))
+            {
+                return;
+            }
+
+            DumpMatches(
+                log,
+                $"Value contains '{needle}'",
+                printLimit,
+                skipAssets,
+                kv => kv.Value?.IndexOf(needle, StringComparison.OrdinalIgnoreCase) >= 0);
+        }
+
+        private static void DumpMatches(
+            ILog log,
+            string label,
+            int printLimit,
+            bool skipAssets,
+            Func<KeyValuePair<string, string>, bool> predicate)
+        {
+            if (!TryGetDictionary(log, out LocalizationDictionary? dict))
+            {
+                return;
+            }
+
+            int count = 0;
+            int printed = 0;
+            int safePrintLimit = Math.Max(0, printLimit);
+
+            foreach (KeyValuePair<string, string> kv in dict.entries)
+            {
+                if (skipAssets && kv.Key.StartsWith("Assets.", StringComparison.Ordinal))
                 {
-                    if (printed++ < printLimit)
-                        log.Info($"[Locale] {prefix}: {kv.Key} = {kv.Value}");
-                    count++;
+                    continue;
+                }
+
+                if (!predicate(kv))
+                {
+                    continue;
+                }
+
+                count++;
+                if (printed < safePrintLimit)
+                {
+                    printed++;
+                    log.Info($"[LocaleScan] MATCH: {kv.Key} = {kv.Value}");
                 }
             }
 
-            log.Info($"[Locale] Prefix '{prefix}' — total: {count} (printed first {Math.Min(printed, printLimit)})");
+            log.Info($"[LocaleScan] {label}: total {count}, printed {printed} (locale={dict.localeID})");
+        }
+
+        private static int CountEntries(LocalizationDictionary dict)
+        {
+            int count = 0;
+            foreach (KeyValuePair<string, string> _ in dict.entries)
+            {
+                count++;
+            }
+
+            return count;
+        }
+
+        private static bool TryGetDictionary(ILog log, [NotNullWhen(true)] out LocalizationDictionary? dict)
+        {
+            dict = null;
+
+            try
+            {
+                LocalizationManager? manager = GameManager.instance?.localizationManager;
+                dict = manager?.activeDictionary;
+            }
+            catch (Exception ex)
+            {
+                log.Warn($"[LocaleScan] Could not read active localization dictionary: {ex.GetType().Name}: {ex.Message}");
+                return false;
+            }
+
+            if (dict == null)
+            {
+                log.Info("[LocaleScan] No active localization dictionary is available yet.");
+                return false;
+            }
+
+            return true;
         }
     }
 }
