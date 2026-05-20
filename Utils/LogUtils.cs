@@ -1,14 +1,25 @@
 // File: Utils/LogUtils.cs
-// Version: 0.6.3 based on River-Mochi shared CS2 utilities.
+// Version: 0.6.4 based on River-Mochi shared CS2 utilities.
 // Purpose: popup-safe direct-file logging helpers for CS2 mods.
 // Why: routine Info/Warn are written with .NET FileStream/StreamWriter
 //   instead of sending every message through Colossal's logger write path, which
 //   can surface UI popups if its internal stream fails.
-// Usage:
+//
+// Usage option A - recommended for new code because the logger is visible:
 // 1. Create your mod logger normally in Mod.cs:
 //    static readonly ILog s_Log = LogManager.GetLogger("YourModId").SetShowsErrorsInUI(false);
-// 2. Optional: call LogUtils.Configure("YourModId") once on load for fallback file naming.
-// 3. Log with explicit logger: LogUtils.Info(s_Log, () => "message");
+// 2. Log by passing that logger:
+//    LogUtils.Info(s_Log, () => "message");
+//    LogUtils.Warn(s_Log, () => "message");
+//    LogUtils.Error(s_Log, () => "message", ex);
+//
+// Usage option B - supported for older River-Mochi mods and short call sites:
+// 1. Create your mod logger normally in Mod.cs.
+// 2. At the start of OnLoad, before using LogUtils.Info(() => ...), call:
+//    LogUtils.Configure("YourModId", s_Log);
+// 3. Then LogUtils remembers that logger for the short calls:
+//    LogUtils.Info(() => "message");
+//
 // The logger variable can be named anything; s_Log is just the name used in River-Mochi mods.
 
 namespace CS2Shared.RiverMochi
@@ -32,6 +43,10 @@ namespace CS2Shared.RiverMochi
         // Used only if the passed ILog is null or its metadata throws during early startup/shutdown.
         private static string s_FallbackLogName = string.Empty;
 
+        // Optional default logger for short calls such as LogUtils.Info(() => "message").
+        // It is "remembered" when a mod calls Configure("ModId", s_Log) or SetDefaultLog(s_Log).
+        private static ILog? s_DefaultLog;
+
         // Optional one-time setup: pass your mod id so fallback writes can still find ModName.log.
         public static void Configure(string fallbackLogName)
         {
@@ -47,6 +62,19 @@ namespace CS2Shared.RiverMochi
             }
         }
 
+        // Optional one-time setup with a default logger for concise LogUtils.Info(() => ...) calls.
+        public static void Configure(string fallbackLogName, ILog? defaultLog)
+        {
+            Configure(fallbackLogName);
+            s_DefaultLog = defaultLog;
+        }
+
+        // Sets or replaces the remembered logger used by short calls.
+        public static void SetDefaultLog(ILog? log)
+        {
+            s_DefaultLog = log;
+        }
+
         // Test/mod-reload helper: lets a mod reset once-only warnings without restarting the game.
         public static void ClearWarnOnceKeys()
         {
@@ -54,6 +82,12 @@ namespace CS2Shared.RiverMochi
             {
                 s_WarnOnceKeys.Clear();
             }
+        }
+
+        // Logs a warning only once per remembered logger+key so hot update loops cannot spam the log.
+        public static bool WarnOnce(string key, Func<string> messageFactory, Exception? exception = null)
+        {
+            return WarnOnce(s_DefaultLog, key, messageFactory, exception);
         }
 
         // Logs a warning only once per logger+key so hot update loops cannot spam the log.
@@ -95,10 +129,22 @@ namespace CS2Shared.RiverMochi
             TryLog(log, Level.Info, messageFactory);
         }
 
+        // Routine status/debugging info using the remembered logger.
+        public static void Info(Func<string> messageFactory)
+        {
+            TryLog(s_DefaultLog, Level.Info, messageFactory);
+        }
+
         // Recoverable problem worth showing in the mod log, optionally with an exception stack trace.
         public static void Warn(ILog? log, Func<string> messageFactory, Exception? exception = null)
         {
             TryLog(log, Level.Warn, messageFactory, exception);
+        }
+
+        // Recoverable problem using the remembered logger.
+        public static void Warn(Func<string> messageFactory, Exception? exception = null)
+        {
+            TryLog(s_DefaultLog, Level.Warn, messageFactory, exception);
         }
 
         // Serious problem that should still avoid Colossal logger UI popups when possible.
@@ -107,10 +153,22 @@ namespace CS2Shared.RiverMochi
             TryLog(log, Level.Error, messageFactory, exception);
         }
 
+        // Serious problem using the remembered logger.
+        public static void Error(Func<string> messageFactory, Exception? exception = null)
+        {
+            TryLog(s_DefaultLog, Level.Error, messageFactory, exception);
+        }
+
         // Debug output obeys the logger's enabled level before building the message string.
         public static void Debug(ILog? log, Func<string> messageFactory)
         {
             TryLog(log, Level.Debug, messageFactory);
+        }
+
+        // Debug output using the remembered logger.
+        public static void Debug(Func<string> messageFactory)
+        {
+            TryLog(s_DefaultLog, Level.Debug, messageFactory);
         }
 
         // Very detailed diagnostics for rare deep investigations.
@@ -119,10 +177,28 @@ namespace CS2Shared.RiverMochi
             TryLog(log, Level.Trace, messageFactory);
         }
 
+        // Very detailed diagnostics using the remembered logger.
+        public static void Trace(Func<string> messageFactory)
+        {
+            TryLog(s_DefaultLog, Level.Trace, messageFactory);
+        }
+
         // Player-enabled verbose logs: useful for test builds without making normal logs noisy.
         public static void Verbose(ILog? log, Func<string> messageFactory)
         {
             TryLog(log, Level.Verbose, messageFactory);
+        }
+
+        // Player-enabled verbose logs using the remembered logger.
+        public static void Verbose(Func<string> messageFactory)
+        {
+            TryLog(s_DefaultLog, Level.Verbose, messageFactory);
+        }
+
+        // Central safe entrypoint using the remembered logger.
+        public static void TryLog(Level level, Func<string> messageFactory, Exception? exception = null)
+        {
+            TryLog(s_DefaultLog, level, messageFactory, exception);
         }
 
         // Central safe entrypoint: checks level first, builds message safely, then direct-appends.
@@ -192,24 +268,24 @@ namespace CS2Shared.RiverMochi
                     Directory.CreateDirectory(dir);
                 }
 
-                using FileStream stream = new FileStream(
+                using (FileStream stream = new FileStream(
                     logPath,
                     FileMode.Append,
                     FileAccess.Write,
-                    FileShare.ReadWrite);
-
-                using StreamWriter writer = new StreamWriter(stream);
-
-                writer.Write('[');
-                writer.Write(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss,fff"));
-                writer.Write("] [");
-                writer.Write(GetLevelName(level));
-                writer.Write("]  ");
-                writer.WriteLine(message ?? string.Empty);
-
-                if (exception != null)
+                    FileShare.ReadWrite))
+                using (StreamWriter writer = new StreamWriter(stream))
                 {
-                    writer.WriteLine(exception);
+                    writer.Write('[');
+                    writer.Write(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss,fff"));
+                    writer.Write("] [");
+                    writer.Write(GetLevelName(level));
+                    writer.Write("]  ");
+                    writer.WriteLine(message ?? string.Empty);
+
+                    if (exception != null)
+                    {
+                        writer.WriteLine(exception);
+                    }
                 }
             }
         }
