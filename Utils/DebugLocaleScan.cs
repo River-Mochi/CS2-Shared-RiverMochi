@@ -1,13 +1,13 @@
 // DebugLocaleScan.cs
 
-#if DEBUG
-using System;
-using Colossal.Localization;   // LocalizationManager, LocalizationDictionary
-using Colossal.Logging;        // ILog
-using Game.SceneFlow;          // GameManager
-
-namespace AchievementFixer
+namespace CS2Shared.RiverMochi
 {
+#if DEBUG
+    using Colossal.Localization;   // LocalizationManager, LocalizationDictionary
+    using Colossal.Logging;        // ILog
+    using Game.SceneFlow;          // GameManager
+    using System;
+
     /*
      * DebugLocaleScan (DEBUG-only)
      * ---------------------------
@@ -62,7 +62,7 @@ namespace AchievementFixer
      *   - Read-only: just logs what keys/values are present. Does not modify game state.
      */
 
-    internal static class DebugLocaleScan
+    public static class DebugLocaleScan
     {
         /// <summary>
         /// Dump counts and a few sample entries for achievement-related keys.
