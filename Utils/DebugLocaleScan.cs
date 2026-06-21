@@ -1,7 +1,11 @@
-// File: Utils/DebugLocaleScan.cs
-// Version: 0.1.0
-// Purpose: DEBUG-only helpers for finding CS2 localization keys while making mods.
-// Based on River-Mochi shared CS2 utilities.
+// <copyright file="DebugLocaleScan.cs" company="River-Mochi">
+// Copyright (c) 2026 River-Mochi. All rights reserved.
+// Licensed under the MIT License. You may not use this file except in compliance with this License.
+// See LICENSE file in the project root for full license information.
+// This notice and the MIT License notice must be kept with
+// all copies or substantial portions of this code.
+// ================= </copyright> ======================
+
 //
 // Why:
 // - CS2 often already has localized text for game concepts such as notifications,

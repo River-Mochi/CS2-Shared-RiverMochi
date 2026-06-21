@@ -1,0 +1,27 @@
+export const VANILLA_THEME_MODULES = {
+    toolButtonTheme: ["game-ui/game/components/tool-options/tool-button/tool-button.module.scss", "classes"],
+    mouseToolOptionsTheme: ["game-ui/game/components/tool-options/mouse-tool-options/mouse-tool-options.module.scss", "classes"],
+    descriptionTooltipTheme: ["game-ui/common/tooltip/description-tooltip/description-tooltip.module.scss", "classes"],
+    colorFieldTheme: ["game-ui/common/input/color-picker/color-field/color-field.module.scss", "classes"],
+    commonDropdownTheme: ["game-ui/common/input/dropdown/dropdown.module.scss", "classes"],
+    menuDropdownTheme: ["game-ui/menu/themes/dropdown.module.scss", "classes"],
+    checkboxTheme: ["game-ui/common/input/toggle/checkbox/checkbox.module.scss", "classes"],
+    statisticsCheckboxTheme: ["game-ui/game/components/statistics-panel/menu/item/statistics-item.module.scss", "classes"],
+    toolbarFeatureButtonTheme: ["game-ui/game/components/toolbar/components/feature-button/toolbar-feature-button.module.scss", "classes"],
+    roundHighlightButtonTheme: ["game-ui/common/input/button/themes/round-highlight-button.module.scss", "classes"],
+    infoRowTheme: ["game-ui/game/components/selected-info-panel/shared-components/info-row/info-row.module.scss", "classes"],
+    panelBaseTheme: ["game-ui/common/panel/panel.module.scss", "classes"],
+    panelTheme: ["game-ui/common/panel/themes/default.module.scss", "classes"],
+    infoviewMenuTheme: ["game-ui/game/components/infoviews/infoview-menu.module.scss", "classes"],
+    pageSelectorTheme: ["game-ui/menu/components/whats-new-panel/page-selector/page-selector.module.scss", "classes"],
+    whatsNewPageTheme: ["game-ui/menu/components/whats-new-panel/whats-new-page/whats-new-page.module.scss", "classes"],
+    horizontalTransitionTheme: ["game-ui/common/animations/paging/transitions/horizontal-transition.module.scss", "classes"],
+    whatsNewTabTheme: ["game-ui/menu/components/whats-new-panel/whats-new-tab/whats-new-tab.module.scss", "classes"],
+    toolOptionsPanelTheme: ["game-ui/game/components/tool-options/tool-options-panel.module.scss", "classes"],
+    assetCategoryTabItemTheme: ["game-ui/game/components/asset-menu/asset-category-tab-bar/category-item.module.scss", "classes"],
+    assetCategoryTabBarTheme: ["game-ui/game/components/asset-menu/asset-category-tab-bar/asset-category-tab-bar.module.scss", "classes"],
+    itemGridTheme: ["game-ui/game/components/item-grid/item-grid.module.scss", "classes"],
+    textInputTheme: ["game-ui/editor/widgets/item/editor-item.module.scss", "classes"],
+} as const;
+
+export type VanillaThemeModuleName = keyof typeof VANILLA_THEME_MODULES;
