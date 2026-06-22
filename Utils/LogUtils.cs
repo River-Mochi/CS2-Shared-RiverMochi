@@ -33,9 +33,6 @@
 // Func<string> overloads are lazy: the message is built only after the log level check.
 // Use lazy messages in hot paths such as OnUpdate, rendering, tool hover, or entity loops.
 
-// Keep this shared helper compatible with C# 7.3-era mod projects: no nullable reference annotations.
-#pragma warning disable CS8600, CS8604, CS8618, CS8625
-
 namespace CS2Shared.RiverMochi
 {
     using System;
@@ -59,7 +56,7 @@ namespace CS2Shared.RiverMochi
 
         // Optional default logger for short calls such as LogUtils.Info("message").
         // It is remembered when a mod calls Configure("ModId", s_Log) or SetDefaultLog(s_Log).
-        private static ILog s_DefaultLog;
+        private static ILog? s_DefaultLog = null;
 
         // Optional one-time setup: pass your mod id so fallback writes can still find ModName.log.
         public static void Configure(string fallbackLogName)
@@ -77,14 +74,14 @@ namespace CS2Shared.RiverMochi
         }
 
         // Optional one-time setup with a default logger for concise LogUtils.Info("message") calls.
-        public static void Configure(string fallbackLogName, ILog defaultLog)
+        public static void Configure(string fallbackLogName, ILog? defaultLog)
         {
             Configure(fallbackLogName);
             s_DefaultLog = defaultLog;
         }
 
         // Sets or replaces the remembered logger used by short calls.
-        public static void SetDefaultLog(ILog log)
+        public static void SetDefaultLog(ILog? log)
         {
             s_DefaultLog = log;
         }
@@ -105,7 +102,7 @@ namespace CS2Shared.RiverMochi
         }
 
         // Simple one-time info log with explicit logger.
-        public static void Info(ILog log, string message)
+        public static void Info(ILog? log, string message)
         {
             TryLog(log, Level.Info, () => message);
         }
@@ -117,55 +114,55 @@ namespace CS2Shared.RiverMochi
         }
 
         // Lazy info log with explicit logger.
-        public static void Info(ILog log, Func<string> messageFactory)
+        public static void Info(ILog? log, Func<string> messageFactory)
         {
             TryLog(log, Level.Info, messageFactory);
         }
 
         // Simple recoverable warning.
-        public static void Warn(string message, Exception exception = null)
+        public static void Warn(string message, Exception? exception = null)
         {
             TryLog(s_DefaultLog, Level.Warn, () => message, exception);
         }
 
         // Simple recoverable warning with explicit logger.
-        public static void Warn(ILog log, string message, Exception exception = null)
+        public static void Warn(ILog? log, string message, Exception? exception = null)
         {
             TryLog(log, Level.Warn, () => message, exception);
         }
 
         // Lazy recoverable warning.
-        public static void Warn(Func<string> messageFactory, Exception exception = null)
+        public static void Warn(Func<string> messageFactory, Exception? exception = null)
         {
             TryLog(s_DefaultLog, Level.Warn, messageFactory, exception);
         }
 
         // Lazy recoverable warning with explicit logger.
-        public static void Warn(ILog log, Func<string> messageFactory, Exception exception = null)
+        public static void Warn(ILog? log, Func<string> messageFactory, Exception? exception = null)
         {
             TryLog(log, Level.Warn, messageFactory, exception);
         }
 
         // Simple serious error.
-        public static void Error(string message, Exception exception = null)
+        public static void Error(string message, Exception? exception = null)
         {
             TryLog(s_DefaultLog, Level.Error, () => message, exception);
         }
 
         // Simple serious error with explicit logger.
-        public static void Error(ILog log, string message, Exception exception = null)
+        public static void Error(ILog? log, string message, Exception? exception = null)
         {
             TryLog(log, Level.Error, () => message, exception);
         }
 
         // Lazy serious error.
-        public static void Error(Func<string> messageFactory, Exception exception = null)
+        public static void Error(Func<string> messageFactory, Exception? exception = null)
         {
             TryLog(s_DefaultLog, Level.Error, messageFactory, exception);
         }
 
         // Lazy serious error with explicit logger.
-        public static void Error(ILog log, Func<string> messageFactory, Exception exception = null)
+        public static void Error(ILog? log, Func<string> messageFactory, Exception? exception = null)
         {
             TryLog(log, Level.Error, messageFactory, exception);
         }
@@ -177,7 +174,7 @@ namespace CS2Shared.RiverMochi
         }
 
         // Simple debug log with explicit logger.
-        public static void Debug(ILog log, string message)
+        public static void Debug(ILog? log, string message)
         {
             TryLog(log, Level.Debug, () => message);
         }
@@ -189,7 +186,7 @@ namespace CS2Shared.RiverMochi
         }
 
         // Lazy debug log with explicit logger.
-        public static void Debug(ILog log, Func<string> messageFactory)
+        public static void Debug(ILog? log, Func<string> messageFactory)
         {
             TryLog(log, Level.Debug, messageFactory);
         }
@@ -201,7 +198,7 @@ namespace CS2Shared.RiverMochi
         }
 
         // Simple trace log with explicit logger.
-        public static void Trace(ILog log, string message)
+        public static void Trace(ILog? log, string message)
         {
             TryLog(log, Level.Trace, () => message);
         }
@@ -213,7 +210,7 @@ namespace CS2Shared.RiverMochi
         }
 
         // Lazy trace log with explicit logger.
-        public static void Trace(ILog log, Func<string> messageFactory)
+        public static void Trace(ILog? log, Func<string> messageFactory)
         {
             TryLog(log, Level.Trace, messageFactory);
         }
@@ -225,7 +222,7 @@ namespace CS2Shared.RiverMochi
         }
 
         // Simple verbose log with explicit logger.
-        public static void Verbose(ILog log, string message)
+        public static void Verbose(ILog? log, string message)
         {
             TryLog(log, Level.Verbose, () => message);
         }
@@ -237,19 +234,19 @@ namespace CS2Shared.RiverMochi
         }
 
         // Lazy verbose log with explicit logger.
-        public static void Verbose(ILog log, Func<string> messageFactory)
+        public static void Verbose(ILog? log, Func<string> messageFactory)
         {
             TryLog(log, Level.Verbose, messageFactory);
         }
 
         // Logs a warning only once per remembered logger+key so hot update loops cannot spam the log.
-        public static bool WarnOnce(string key, Func<string> messageFactory, Exception exception = null)
+        public static bool WarnOnce(string key, Func<string> messageFactory, Exception? exception = null)
         {
             return WarnOnce(s_DefaultLog, key, messageFactory, exception);
         }
 
         // Logs a warning only once per logger+key so hot update loops cannot spam the log.
-        public static bool WarnOnce(ILog log, string key, Func<string> messageFactory, Exception exception = null)
+        public static bool WarnOnce(ILog? log, string key, Func<string> messageFactory, Exception? exception = null)
         {
             if (string.IsNullOrEmpty(key) || messageFactory == null)
             {
@@ -282,13 +279,13 @@ namespace CS2Shared.RiverMochi
         }
 
         // Central safe entrypoint using the remembered logger.
-        public static void TryLog(Level level, Func<string> messageFactory, Exception exception = null)
+        public static void TryLog(Level level, Func<string> messageFactory, Exception? exception = null)
         {
             TryLog(s_DefaultLog, level, messageFactory, exception);
         }
 
         // Central safe entrypoint: checks level first, builds message safely, then direct-appends.
-        public static void TryLog(ILog log, Level level, Func<string> messageFactory, Exception exception = null)
+        public static void TryLog(ILog? log, Level level, Func<string> messageFactory, Exception? exception = null)
         {
             if (messageFactory == null)
             {
@@ -321,7 +318,7 @@ namespace CS2Shared.RiverMochi
         }
 
         // Last-chance warning path used when the original message factory itself throws.
-        private static void SafeLogNoException(ILog log, Level level, string message)
+        private static void SafeLogNoException(ILog? log, Level level, string message)
         {
             try
             {
@@ -336,7 +333,7 @@ namespace CS2Shared.RiverMochi
         }
 
         // Writes directly to ModName.log using .NET, bypassing Colossal's logger write path.
-        private static void AppendDirect(ILog log, Level level, string message, Exception exception)
+        private static void AppendDirect(ILog? log, Level level, string message, Exception? exception)
         {
             string logPath = GetLogPath(log);
             if (string.IsNullOrEmpty(logPath))
@@ -348,7 +345,7 @@ namespace CS2Shared.RiverMochi
             {
                 // Direct append keeps routine mod diagnostics out of Colossal's UI-log path.
                 // ShareReadWrite keeps the file readable while the game is running.
-                string dir = Path.GetDirectoryName(logPath);
+                string? dir = Path.GetDirectoryName(logPath);
                 if (!string.IsNullOrEmpty(dir))
                 {
                     Directory.CreateDirectory(dir);
@@ -377,7 +374,7 @@ namespace CS2Shared.RiverMochi
         }
 
         // Prefer Colossal's assigned file path; fallback to Logs/FallbackName.log if needed.
-        private static string GetLogPath(ILog log)
+        private static string GetLogPath(ILog? log)
         {
             try
             {
@@ -406,7 +403,7 @@ namespace CS2Shared.RiverMochi
         }
 
         // Keeps the logger name lookup isolated because ILog metadata can be fragile during startup.
-        private static string GetLogName(ILog log)
+        private static string GetLogName(ILog? log)
         {
             try
             {
@@ -424,7 +421,7 @@ namespace CS2Shared.RiverMochi
         }
 
         // If level checks fail because logging is in flux, keep direct-file logging available.
-        private static bool IsLevelEnabled(ILog log, Level level)
+        private static bool IsLevelEnabled(ILog? log, Level level)
         {
             try
             {
