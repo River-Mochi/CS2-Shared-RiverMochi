@@ -1,17 +1,21 @@
-# File: .gitattributes version 0.6.1
+# File: .gitattributes version 0.6.2
 # Controls line endings and binary handling
 #
 # Policy:
 # - Use LF for normal text files.
+# - Keep classic Visual Studio .sln files as CRLF.
+# - Keep XML .slnx files as LF.
 # - Keep Windows batch scripts as CRLF.
 # - Never modify binary files.
 
 # Default for text files
 * text=auto eol=lf
 
-# Visual Studio / C# files
-*.sln      text eol=lf
+# Visual Studio solution files
+*.sln      text eol=crlf
 *.slnx     text eol=lf
+
+# Visual Studio / C# project files
 *.csproj   text eol=lf
 *.props    text eol=lf
 *.targets  text eol=lf

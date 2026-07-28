@@ -7,6 +7,7 @@
 # ================= </copyright> ======================
 
 # File: src/Scripts/check_lang_json.py
+# Version: 0.2.0
 # Purpose:
 #   Check JSON translation files in /lang or /src/lang.
 #

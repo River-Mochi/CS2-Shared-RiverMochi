@@ -1,14 +1,17 @@
-# File: .editorconfig version 0.6.1
+# File: .editorconfig version 0.6.5
 # Purpose:
-#   - Consistent whitespace + LF line endings across the repo.
+#   - Consistent whitespace + LF line endings across normal repo files.
+#   - CRLF for classic Visual Studio .sln files.
+#   - LF for XML .slnx files through the global default.
 #   - C# style preferences: explicit types and CO-style naming.
 #   - Support Visual Studio, Rider/ReSharper, Git Bash, PowerShell
 #   - Allow flat namespaces that do NOT have to match folder structure.
+#   - Add Copyright check
 
 root = true
 
 # =========================
-# Global defaults: all files
+# Global defaults: normal files
 # =========================
 [*]
 charset = utf-8
@@ -18,6 +21,15 @@ trim_trailing_whitespace = true
 
 # Use spaces when editors auto-indent.
 indent_style = space
+indent_size = 4
+
+
+# =========================
+# Visual Studio classic solution files
+# Must match .gitattributes CRLF rule.
+# =========================
+[*.sln]
+end_of_line = crlf
 indent_size = 4
 
 
@@ -51,6 +63,15 @@ trim_trailing_whitespace = false
 # C# files
 # =========================
 [*.cs]
+# Public CS2 settings members are reflection entry points.
+dotnet_code_quality.CA1822.api_surface = private, internal
+
+# Sort usings without adding blank lines between namespace groups.
+dotnet_sort_system_directives_first = true
+dotnet_separate_import_directive_groups = false
+
+# Show unused usings, but do not remove them automatically.
+dotnet_diagnostic.IDE0005.severity = suggestion
 dotnet_diagnostic.IDE0073.severity = warning
 file_header_template = <copyright file="{fileName}" company="River-Mochi">\nCopyright (c) 2026 River-Mochi. All rights reserved.\nLicensed under the MIT License. You may not use this file except in compliance with this License.\nSee LICENSE file in the project root for full license information.\nThis notice and the MIT License notice must be kept with\nall copies or substantial portions of this code.\n================= </copyright> ======================
 

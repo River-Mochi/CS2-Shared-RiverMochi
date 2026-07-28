@@ -7,6 +7,7 @@
 # ================= </copyright> ======================
 
 # File: src/Scripts/check_all_locales.py
+# Version: 0.2.0
 # Purpose:
 #   Run both localization checkers:
 #   - check_locales.py   for C# Locale*.cs files

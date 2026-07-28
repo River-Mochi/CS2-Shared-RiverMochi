@@ -6,12 +6,17 @@
 // all copies or substantial portions of this code.
 // ================= </copyright> ======================
 
+// File: Utils/ShellOpen.cs
+// Version: 0.3.2
+// Purpose: File/folder opening helpers for CS2 Options UI buttons.
+// Based on River-Mochi shared CS2 utilities.
+
 namespace CS2Shared.RiverMochi
 {
-    using Colossal.Logging;
     using System;
     using System.Diagnostics;
     using System.IO;
+    using Colossal.Logging;
     using UnityEngine;
 
     public static class ShellOpen
@@ -27,7 +32,9 @@ namespace CS2Shared.RiverMochi
             if (!string.IsNullOrWhiteSpace(modId))
             {
                 s_ModId = Path.GetFileNameWithoutExtension(modId.Trim());
-                LogUtils.Configure(s_ModId);
+
+                // Also configures LogUtils default logger, so short LogUtils.Info(...) calls work.
+                LogUtils.Configure(s_ModId, log);
             }
 
             if (!string.IsNullOrWhiteSpace(modTag))
@@ -60,7 +67,12 @@ namespace CS2Shared.RiverMochi
         {
             try
             {
-                // CS2 puts Player.log beside the Logs folder.
+                if (!string.IsNullOrWhiteSpace(LogManager.kDefaultLogPath))
+                {
+                    return LogManager.kDefaultLogPath;
+                }
+
+                // Fallback for unusual environments where Colossal has not initialized the log path yet.
                 string consoleLogPath = Application.consoleLogPath;
                 if (string.IsNullOrEmpty(consoleLogPath))
                 {
@@ -123,7 +135,12 @@ namespace CS2Shared.RiverMochi
                     return;
                 }
 
-                TryOpenWithUnityFileUrl(fullPath, isFolder);
+                if (TryOpenWithUnityFileUrl(fullPath, isFolder))
+                {
+                    return;
+                }
+
+                LogInfo(logLabel, "could not open path: " + fullPath);
             }
             catch (Exception ex)
             {
@@ -201,9 +218,8 @@ namespace CS2Shared.RiverMochi
 
                 return true;
             }
-            catch (Exception ex)
+            catch
             {
-                LogWarn("ShellOpen", "OS shell failed: " + ex.GetType().Name + ": " + ex.Message, ex);
                 return false;
             }
         }

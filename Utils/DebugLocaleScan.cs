@@ -6,6 +6,9 @@
 // all copies or substantial portions of this code.
 // ================= </copyright> ======================
 
+// File: DebugLocaleScan.cs
+// Version: 0.1.0
+
 //
 // Why:
 // - CS2 often already has localized text for game concepts such as notifications,

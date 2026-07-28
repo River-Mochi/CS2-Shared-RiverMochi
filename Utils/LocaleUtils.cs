@@ -6,6 +6,9 @@
 // all copies or substantial portions of this code.
 // ================= </copyright> ======================
 
+// File: LocaleUtils.cs
+// Version: 0.1.0
+
 namespace CS2Shared.RiverMochi
 {
     using Colossal.Localization;
